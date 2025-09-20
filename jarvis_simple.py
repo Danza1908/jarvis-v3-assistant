@@ -1388,16 +1388,16 @@ def main():
             
             Try saying: "Help me plan a project" or "Write a blog post" or "Analyze my budget"
             """)
-    else:
-        st.header("🔧 Activate JARVIS")
-        st.info("""
-        **To activate JARVIS V3:**
-        
-        1. 🔑 Get a free Gemini API key: https://makersuite.google.com/app/apikey
-        2. 📝 Paste it in the sidebar under "Gemini Pro Configuration"
-        3. 🚀 Start chatting with voice and specialized agents!
-        
-        **What makes JARVIS V3 special:**
+        else:
+            st.header("🔧 Activate JARVIS")
+            st.info("""
+            **To activate JARVIS V3:**
+            
+            1. 🔑 Get a free Gemini API key: https://makersuite.google.com/app/apikey
+            2. 📝 Paste it in the sidebar under "Gemini Pro Configuration"
+            3. 🚀 Start chatting with voice and specialized agents!
+            
+            **What makes JARVIS V3 special:**
         - 🆓 **Completely free** with Gemini Pro
         - 🎤 **Voice interface** for natural interaction
         - 🎯 **9 specialized agents** for different tasks
