@@ -1,0 +1,24 @@
+# JARVIS V3 Cloud Dependencies - Streamlit Cloud Optimized
+streamlit==1.49.1
+google-generativeai==0.8.5
+requests==2.32.5
+python-dateutil==2.9.0
+
+# Image processing (optional)
+Pillow>=10.0.0
+
+# Free AI Alternatives
+ollama>=0.1.0
+transformers>=4.30.0
+torch>=2.0.0
+google-generativeai>=0.3.0
+groq>=0.4.0
+accelerate>=0.20.0
+
+# Google Cloud ML (optional)
+google-cloud-aiplatform>=1.30.0
+google-cloud-bigquery>=3.11.0
+google-cloud-storage>=2.10.0
+
+# For advanced ML (optional - comment out if causing issues)
+# tensorflow>=2.13.0
