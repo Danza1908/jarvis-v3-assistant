@@ -15,6 +15,8 @@ import secrets
 import re
 import random
 import requests
+import time
+import threading
 from urllib.parse import quote
 
 # Try to import required packages
@@ -178,6 +180,151 @@ def sanitize_output(text):
     
     return text
 
+# Authentication Functions
+def authenticate_user(password):
+    """Authenticate user with password"""
+    # In production, use environment variable or secure storage
+    correct_password = "jarvis2025!"  # Change this to your preferred password
+    return password == correct_password
+
+def check_authentication():
+    """Check if user is authenticated"""
+    return st.session_state.get('authenticated', False)
+
+def login_page():
+    """Display login page"""
+    st.markdown("<div class='main-header'><h1>🔐 JARVIS V3 - Secure Access</h1><p>Please enter your password to access JARVIS</p></div>", unsafe_allow_html=True)
+    
+    with st.form("login_form"):
+        password = st.text_input("Password:", type="password", placeholder="Enter your JARVIS password")
+        submit = st.form_submit_button("🚀 Access JARVIS")
+        
+        if submit:
+            if authenticate_user(password):
+                st.session_state.authenticated = True
+                st.session_state.login_time = datetime.now()
+                log_security_event("LOGIN_SUCCESS", "User successfully authenticated")
+                st.success("✅ Access Granted! Welcome to JARVIS V3")
+                time.sleep(1)
+                st.rerun()
+            else:
+                log_security_event("LOGIN_FAILED", "Invalid password attempt")
+                st.error("❌ Invalid password. Access denied.")
+                time.sleep(2)
+
+# Idle Learning System
+def initialize_learning_system():
+    """Initialize the learning system"""
+    if 'learning_data' not in st.session_state:
+        st.session_state.learning_data = {
+            'conversation_patterns': [],
+            'user_preferences': {},
+            'common_queries': {},
+            'response_improvements': [],
+            'knowledge_base': [],
+            'last_learning_update': datetime.now().isoformat()
+        }
+    
+    if 'idle_learning_active' not in st.session_state:
+        st.session_state.idle_learning_active = True
+
+def learn_from_interaction(user_input, agent_response, agent_type):
+    """Learn from each user interaction"""
+    if 'learning_data' not in st.session_state:
+        initialize_learning_system()
+    
+    learning_entry = {
+        'timestamp': datetime.now().isoformat(),
+        'user_input': user_input[:200],  # Store first 200 chars for privacy
+        'agent_type': agent_type,
+        'response_length': len(agent_response),
+        'session_id': st.session_state.session_id
+    }
+    
+    # Add to conversation patterns
+    st.session_state.learning_data['conversation_patterns'].append(learning_entry)
+    
+    # Track common query patterns
+    query_key = user_input.lower()[:50]  # First 50 chars as key
+    if query_key in st.session_state.learning_data['common_queries']:
+        st.session_state.learning_data['common_queries'][query_key] += 1
+    else:
+        st.session_state.learning_data['common_queries'][query_key] = 1
+    
+    # Keep only last 100 patterns to manage memory
+    if len(st.session_state.learning_data['conversation_patterns']) > 100:
+        st.session_state.learning_data['conversation_patterns'] = st.session_state.learning_data['conversation_patterns'][-100:]
+    
+    st.session_state.learning_data['last_learning_update'] = datetime.now().isoformat()
+
+def idle_learning_process():
+    """Background learning process for when JARVIS is idle"""
+    if not st.session_state.get('idle_learning_active', False):
+        return
+    
+    # Analyze conversation patterns
+    if 'learning_data' in st.session_state:
+        patterns = st.session_state.learning_data['conversation_patterns']
+        
+        if len(patterns) > 5:  # Only analyze if we have enough data
+            # Find most common query types
+            common_queries = st.session_state.learning_data['common_queries']
+            if common_queries:
+                most_common = max(common_queries.items(), key=lambda x: x[1])
+                
+                # Generate learning insights
+                learning_insight = {
+                    'timestamp': datetime.now().isoformat(),
+                    'type': 'pattern_analysis',
+                    'insight': f"Most common query pattern: '{most_common[0]}' (used {most_common[1]} times)",
+                    'suggestion': 'Consider creating quick response templates for frequent queries'
+                }
+                
+                if 'response_improvements' not in st.session_state.learning_data:
+                    st.session_state.learning_data['response_improvements'] = []
+                
+                st.session_state.learning_data['response_improvements'].append(learning_insight)
+                
+                # Keep only last 20 improvements
+                if len(st.session_state.learning_data['response_improvements']) > 20:
+                    st.session_state.learning_data['response_improvements'] = st.session_state.learning_data['response_improvements'][-20:]
+
+def get_learning_insights():
+    """Get current learning insights"""
+    if 'learning_data' not in st.session_state:
+        return "Learning system initializing..."
+    
+    data = st.session_state.learning_data
+    insights = []
+    
+    # Conversation stats
+    total_conversations = len(data.get('conversation_patterns', []))
+    insights.append(f"📊 Total interactions analyzed: {total_conversations}")
+    
+    # Most common queries
+    common_queries = data.get('common_queries', {})
+    if common_queries:
+        top_query = max(common_queries.items(), key=lambda x: x[1])
+        insights.append(f"🔥 Most frequent query type: '{top_query[0][:30]}...' ({top_query[1]} times)")
+    
+    # Recent improvements
+    improvements = data.get('response_improvements', [])
+    if improvements:
+        latest = improvements[-1]
+        insights.append(f"💡 Latest insight: {latest['suggestion']}")
+    
+    # Learning status
+    last_update = data.get('last_learning_update', 'Never')
+    if last_update != 'Never':
+        update_time = datetime.fromisoformat(last_update)
+        time_diff = datetime.now() - update_time
+        if time_diff.total_seconds() < 300:  # Less than 5 minutes
+            insights.append("🧠 Status: Actively learning from interactions")
+        else:
+            insights.append("😴 Status: Idle learning mode")
+    
+    return "\n".join(insights)
+
 # Initialize session state
 if 'messages' not in st.session_state:
     st.session_state.messages = []
@@ -198,6 +345,14 @@ if 'last_requests' not in st.session_state:
 if 'saved_api_key' not in st.session_state:
     st.session_state.saved_api_key = ""
 if 'api_key_saved' not in st.session_state:
+    st.session_state.api_key_saved = False
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'login_time' not in st.session_state:
+    st.session_state.login_time = None
+
+# Initialize learning system
+initialize_learning_system()
     st.session_state.api_key_saved = False
 
 def save_api_key_locally(api_key):
@@ -703,18 +858,47 @@ def auto_select_agent(user_input):
         return "General Assistant"
 
 def main():
+    # Check authentication first
+    if not check_authentication():
+        login_page()
+        return
+    
+    # Session timeout check (8 hours)
+    if st.session_state.login_time:
+        time_since_login = datetime.now() - st.session_state.login_time
+        if time_since_login > timedelta(hours=8):
+            st.session_state.authenticated = False
+            st.session_state.login_time = None
+            log_security_event("SESSION_TIMEOUT", "Session expired after 8 hours")
+            st.warning("⏰ Session expired. Please log in again.")
+            st.rerun()
+    
+    # Run idle learning in background
+    if st.session_state.get('idle_learning_active', True):
+        idle_learning_process()
+    
     # Initialize voice engine
     voice_engine = None
     if VOICE_AVAILABLE:
         voice_engine = initialize_voice()
     
-    # Header
-    st.markdown("""
-    <div class="main-header">
-        <h1>🤖 JARVIS V3 - Complete AI Assistant</h1>
-        <p>Powered by Gemini Pro with Voice Interface & Specialized Agents</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Header with logout option
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        st.markdown("""
+        <div class="main-header">
+            <h1>🤖 JARVIS V3 - Secure AI Assistant</h1>
+            <p>Powered by Gemini Pro with Voice Interface & Specialized Agents</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        if st.button("🔓 Logout", help="Logout and secure session"):
+            st.session_state.authenticated = False
+            st.session_state.login_time = None
+            log_security_event("LOGOUT", "User logged out")
+            st.success("✅ Logged out successfully")
+            time.sleep(1)
+            st.rerun()
     
     # Sidebar
     with st.sidebar:
@@ -942,7 +1126,7 @@ def main():
             """, unsafe_allow_html=True)
         
         # Dashboard Tabs
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["💬 Chat", "📅 Agenda", "🏥 Health", "📰 News", "🤖 Agents"])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["💬 Chat", "📅 Agenda", "🏥 Health", "📰 News", "🤖 Agents", "🧠 Learning"])
         
         with tab1:
             # Main chat interface
@@ -1105,6 +1289,76 @@ def main():
                     
                     st.caption(agent_data['description'])
         
+        with tab6:
+            st.header("🧠 JARVIS Learning Dashboard")
+            
+            # Learning status
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("📊 Learning Statistics")
+                insights = get_learning_insights()
+                st.info(insights)
+                
+                # Learning controls
+                st.subheader("⚙️ Learning Controls")
+                
+                learning_enabled = st.toggle(
+                    "🔄 Enable Idle Learning", 
+                    value=st.session_state.get('idle_learning_active', True),
+                    help="Allow JARVIS to learn from patterns when not actively chatting"
+                )
+                st.session_state.idle_learning_active = learning_enabled
+                
+                if st.button("🧹 Clear Learning Data", help="Reset all accumulated learning data"):
+                    if 'learning_data' in st.session_state:
+                        st.session_state.learning_data = {
+                            'conversation_patterns': [],
+                            'user_preferences': {},
+                            'common_queries': {},
+                            'response_improvements': [],
+                            'knowledge_base': [],
+                            'last_learning_update': datetime.now().isoformat()
+                        }
+                    st.success("✅ Learning data cleared!")
+                    st.rerun()
+            
+            with col2:
+                st.subheader("🎯 Recent Learning Insights")
+                
+                if 'learning_data' in st.session_state:
+                    improvements = st.session_state.learning_data.get('response_improvements', [])
+                    
+                    if improvements:
+                        for improvement in improvements[-5:]:  # Show last 5
+                            st.markdown(f"""
+                            **💡 {improvement.get('type', 'Insight').title()}**
+                            
+                            *{improvement.get('insight', 'No details available')}*
+                            
+                            📝 Suggestion: {improvement.get('suggestion', 'None')}
+                            
+                            🕒 {improvement.get('timestamp', 'Unknown time')}
+                            
+                            ---
+                            """)
+                    else:
+                        st.info("🌱 No learning insights yet. Chat with JARVIS to start learning!")
+                
+                # Common queries analysis
+                st.subheader("🔥 Most Common Query Types")
+                if 'learning_data' in st.session_state:
+                    common_queries = st.session_state.learning_data.get('common_queries', {})
+                    
+                    if common_queries:
+                        # Sort by frequency
+                        sorted_queries = sorted(common_queries.items(), key=lambda x: x[1], reverse=True)
+                        
+                        for query, count in sorted_queries[:5]:  # Top 5
+                            st.markdown(f"**{count}x** - {query[:50]}...")
+                    else:
+                        st.info("📝 No query patterns detected yet.")
+        
         # Continue with chat interface in Tab 1
         # (Moving the existing chat logic to be inside Tab 1)
         
@@ -1117,13 +1371,7 @@ def main():
         st.header("🚀 Activate JARVIS")
         
         st.markdown("""
-        <div class="main-header">
-            <h1>🤖 Activate JARVIS</h1>
-            <p>Powered by Gemini Pro with Voice Interface & Specialized Agents</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        *JARVIS will automatically switch agents based on your requests, or you can manually select one in the sidebar.*
+        **JARVIS will automatically switch agents based on your requests, or you can manually select one in the sidebar.**
         """)
         
         # Welcome message if no chat history
@@ -1235,6 +1483,9 @@ def main():
                 "content": response,
                 "agent": selected_agent
             })
+            
+            # Learn from this interaction
+            learn_from_interaction(user_input, response, selected_agent)
             
             # Display AI response
             st.markdown(f"""
