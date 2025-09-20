@@ -353,7 +353,6 @@ if 'login_time' not in st.session_state:
 
 # Initialize learning system
 initialize_learning_system()
-    st.session_state.api_key_saved = False
 
 def save_api_key_locally(api_key):
     """Save API key to session state for persistence during the session"""
